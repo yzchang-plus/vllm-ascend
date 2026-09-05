@@ -88,6 +88,35 @@ class AscendUnquantizedLinearMethod(TPWeightSwitchMixin, UnquantizedLinearMethod
     tp_weight_output_gather_specs = (TPWeightGatherSpec("weight"),)
     supports_tp_weight_switch = True
 
+    def create_weights(
+        self,
+        layer: torch.nn.Module,
+        input_size_per_partition: int,
+        output_partition_sizes: list[int],
+        input_size: int,
+        output_size: int,
+        params_dtype: torch.dtype,
+        **kwargs,
+    ):
+        """Empty placeholder gate for BigTensorLoader v2.
+
+        BigTensorLoader's snapshot save path calls ``create_weights`` on a
+        freshly-initialised model and expects the owning module back so it
+        can capture post-``process_weights_after_loading`` tensors.  The
+        upstream ``UnquantizedLinearMethod.create_weights`` returns ``None``;
+        this override delegates to it and returns ``layer`` instead.
+        """
+        super().create_weights(
+            layer,
+            input_size_per_partition,
+            output_partition_sizes,
+            input_size,
+            output_size,
+            params_dtype,
+            **kwargs,
+        )
+        return layer
+
     def process_weights_after_loading(self, layer: torch.nn.Module) -> None:
         super().process_weights_after_loading(layer)
         keep_nd_weight = _should_keep_nd_for_compatibility_weight(layer.weight.data)
