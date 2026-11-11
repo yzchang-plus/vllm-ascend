@@ -62,6 +62,8 @@ def runtime(monkeypatch, local_weights):
     types = load("types")
     config = load("config")
     load("manifest")
+    # tensor_layout imports the shared weight_state enumeration module.
+    _load_module(monkeypatch, "vllm_ascend.model_loader.weight_state", "../weight_state.py")
     load("tensor_layout")
     load("seed_client")
     client = load("planner_client")
@@ -106,11 +108,16 @@ def tensor_runtime(monkeypatch, local_weights):
 
     _stub(monkeypatch, "vllm_ascend.model_loader.rfork.types", SeedTransferInfo=_SeedTransferInfo)
     _load_module(monkeypatch, "vllm_ascend.model_loader.rfork.manifest", "manifest.py")
+    # tensor_layout imports the shared weight_state enumeration module; the
+    # walker (collect_transferable_tensors) resolves its predicates in the
+    # weight_state namespace, so tests monkeypatch them there.
+    weight_state = _load_module(monkeypatch, "vllm_ascend.model_loader.weight_state", "../weight_state.py")
     tensor_layout = _load_module(monkeypatch, "vllm_ascend.model_loader.rfork.tensor_layout", "tensor_layout.py")
     transfer_backend = _load_module(
         monkeypatch, "vllm_ascend.model_loader.rfork.transfer_backend", "transfer_backend.py"
     )
     return SimpleNamespace(
+        weight_state=weight_state,
         tensor_layout=tensor_layout,
         transfer_backend=transfer_backend,
         RForkTransferBackend=transfer_backend.RForkTransferBackend,

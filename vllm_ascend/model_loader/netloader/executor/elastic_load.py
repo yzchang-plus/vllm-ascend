@@ -22,16 +22,15 @@ import torch_npu
 from torch.nn import Module
 from vllm.logger import logger
 
-from vllm_ascend.model_loader.weight_state import iter_tensors_in_value as _iter_tensors_in_value
+from vllm_ascend.model_loader.weight_state import (
+    is_transferable_tensor as _is_transferable_tensor,
+    iter_tensors_in_value as _iter_tensors_in_value,
+)
 from vllm_ascend.utils import ACL_FORMAT_FRACTAL_ND, ACL_FORMAT_FRACTAL_NZ
 
 from .netloader_pg import destroy_stateless_process_group, stateless_init_process_group
 
 _NETLOADER_TRANSFER_ITEMS_ATTR = "_netloader_processed_layout_transfer_items"
-
-
-def _is_transferable_tensor(tensor: torch.Tensor) -> bool:
-    return not tensor.is_meta and tensor.numel() > 0 and tensor.device.type == "npu"
 
 
 def _try_collect_transferable_tensor(
