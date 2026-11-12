@@ -31,6 +31,11 @@ import torch
 from torch import nn
 from vllm.logger import logger
 
+# Module handle: find_non_npu_state_tensors resolves the transferability
+# predicate late, through weight_state (the predicate's home), so monkeypatches
+# on weight_state are visible to it. A from-import binding would snapshot the
+# original function at import time and miss them.
+from vllm_ascend.model_loader import weight_state
 from vllm_ascend.model_loader.rfork.local_weights import get_local_tensor_ids
 from vllm_ascend.model_loader.rfork.manifest import (
     normalize_dtype_name,
@@ -39,7 +44,7 @@ from vllm_ascend.model_loader.rfork.manifest import (
 )
 from vllm_ascend.model_loader.weight_state import (
     collect_transferable_tensors as collect_transferable_tensors,  # noqa: F401 (re-export)
-    is_tensor_on_transfer_device,
+    is_tensor_on_transfer_device as is_tensor_on_transfer_device,  # noqa: F401 (re-export)
     is_transferable_tensor as is_transferable_tensor,  # noqa: F401 (re-export)
     validate_transferable_tensor_layout as validate_transferable_tensor_layout,  # noqa: F401 (re-export)
 )
@@ -242,6 +247,6 @@ def find_non_npu_state_tensors(model: Any) -> list[str]:
         for name, tensor in iterator
         if not tensor.is_meta
         and tensor.numel() > 0
-        and not is_tensor_on_transfer_device(tensor)
+        and not weight_state.is_tensor_on_transfer_device(tensor)
         and id(tensor) not in local_tensor_ids
     ]
