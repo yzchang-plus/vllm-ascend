@@ -2069,6 +2069,21 @@ def _get_dyntra_lb_scheduler_cls(*, async_scheduling: bool) -> str:
 
 
 def _validate_engram_config(vllm_config: VllmConfig) -> None:
+    # Engram relies on safetensors' indexed semantics (hash tables, lookup
+    # indices) for embedding shard management. Pure-binary blob loaders such as
+    # bigtensorloader / netloader have no notion of per-tensor addressing, so
+    # they are fundamentally incompatible. Bail out **before** the auto-infer
+    # branch below so that DeepSeek V4.1 weights carrying engram_layer_ids do
+    # not construct an EngramConfig and then fail the load_format check a few
+    # lines later.
+    load_format = vllm_config.load_config.load_format
+    if load_format not in ("auto", "safetensors", "rfork", "dummy"):
+        # Engram is incompatible with pure binary blob loaders. Upstream may
+        # have auto-inferred an EngramConfig from engram_layer_ids in the HF
+        # config; nuke it here so the model takes the no-engram path.
+        vllm_config.engram_config = None
+        return
+
     engram_config = getattr(vllm_config, "engram_config", None)
     model_config = vllm_config.model_config
     spec = vllm_config.speculative_config

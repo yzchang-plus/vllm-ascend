@@ -124,3 +124,21 @@ def test_platform_leaves_non_engram_models_alone(engram_config):
     engram_config.model_config.architecture = "OtherModel"
     _validate_engram_config(engram_config)
     assert engram_config.engram_config is None
+
+
+def test_bigtensorloader_skips_auto_engram_infer_on_deepseek_v41(engram_config):
+    """Deepseek V4.1 weights carrying engram_layer_ids should NOT trigger
+    auto-construction of EngramConfig when load_format is a pure binary blob
+    loader such as bigtensorloader. Engram depends on safetensors' indexed
+    semantics which bigtensorloader does not provide."""
+    from vllm_ascend.platform import _validate_engram_config
+
+    engram_config.engram_config = None
+    engram_config.model_config.architecture = "DeepseekV41ForCausalLM"
+    engram_config.load_config.load_format = "bigtensorloader"
+    # Architecture + non-empty engram_layer_ids would normally hit the
+    # auto-infer branch in _validate_engram_config and then fail the
+    # load_format check. With the new early-return the function should be a
+    # complete no-op, leaving engram_config unset.
+    _validate_engram_config(engram_config)
+    assert engram_config.engram_config is None
